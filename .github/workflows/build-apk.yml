@@ -1,24 +1,20 @@
-name: Build Universal APK
+name: Build Real APK
 
 on:
   workflow_dispatch:
     inputs:
       html_file:
-        description: 'HTML file path (relative to repository root)'
+        description: 'HTML file path (from repository root)'
         required: true
-        default: 'templates/my-app.html'
+        default: 'templates/app.html'
       app_name:
         description: 'App name'
         required: true
         default: 'MyWebApp'
       package_name:
-        description: 'Package name'
-        required: false
-        default: ''
-      version_name:
-        description: 'Version name'
-        required: false  
-        default: '1.0'
+        description: 'Package name (ex: com.company.app)'
+        required: true
+        default: 'com.example.myapp'
 
 jobs:
   build:
@@ -28,48 +24,68 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          openjdk-11-jdk \
+          wget \
+          unzip \
+          zip \
+          imagemagick
+          
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
         
-    - name: Install dependencies
+    - name: Install Python dependencies
       run: |
-        pip install -r src/requirements.txt
+        pip install pillow
         
-    - name: Create APK from HTML
+    - name: Create Real APK
       run: |
-        cd src
-        python apkreator.py \
-          --html "../${{ github.event.inputs.html_file }}" \
-          --app-name "${{ github.event.inputs.app_name }}" \
-          --package-name "${{ github.event.inputs.package_name }}" \
-          --version-name "${{ github.event.inputs.version_name }}" \
-          --output-dir "../dist"
+        # Criar template se não existir
+        mkdir -p templates
+        if [ ! -f templates/app.html ]; then
+          echo "<html><body><h1>Meu App</h1><p>APK gerado com sucesso!</p></body></html>" > templates/app.html
+        fi
+        
+        # Executar criador REAL de APK
+        python src/real_apk_creator.py \
+          --html "templates/app.html" \
+          --app-name "MeuAppTeste" \
+          --package-name "com.test.myapp"
           
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: generated-apk
-        path: dist/apks/*.apk
-        retention-days: 30
+    - name: List generated files
+      run: |
+        echo "📁 Conteúdo do diretório:"
+        ls -la
+        echo "📁 Conteúdo de dist/:"
+        ls -la dist/ || echo "dist/ não existe"
+        echo "📁 Conteúdo de dist/apks/:"
+        ls -la dist/apks/ || echo "dist/apks/ não existe"
         
-    - name: Upload build info
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: build-info
-        path: dist/build-info.json
+        name: real-generated-apk
+        path: dist/apks/*.apk
+        if-no-files-found: error
         retention-days: 30
 
     - name: Create GitHub Release
-      if: github.event_name == 'workflow_dispatch'
+      if: success()
       uses: softprops/action-gh-release@v1
       with:
         files: dist/apks/*.apk
-        tag_name: apk-build-${{ github.run_id }}
-        release_name: "APK - ${{ github.event.inputs.app_name }}"
+        tag_name: real-apk-${{ github.run_id }}
+        release_name: "Real APK - ${{ github.event.inputs.app_name }}"
         body: |
-          APK gerado automaticamente
+          APK REAL gerado com ferramentas Android
           - App: ${{ github.event.inputs.app_name }}
           - Package: ${{ github.event.inputs.package_name }}
-          - Version: ${{ github.event.inputs.version_name }}
+          - Build: ${{ github.run_id }}
