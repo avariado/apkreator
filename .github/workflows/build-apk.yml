@@ -1,1 +1,75 @@
+name: Build Universal APK
 
+on:
+  workflow_dispatch:
+    inputs:
+      html_file:
+        description: 'HTML file path (relative to repository root)'
+        required: true
+        default: 'templates/my-app.html'
+      app_name:
+        description: 'App name'
+        required: true
+        default: 'MyWebApp'
+      package_name:
+        description: 'Package name'
+        required: false
+        default: ''
+      version_name:
+        description: 'Version name'
+        required: false  
+        default: '1.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        pip install -r src/requirements.txt
+        
+    - name: Create APK from HTML
+      run: |
+        cd src
+        python apkreator.py \
+          --html "../${{ github.event.inputs.html_file }}" \
+          --app-name "${{ github.event.inputs.app_name }}" \
+          --package-name "${{ github.event.inputs.package_name }}" \
+          --version-name "${{ github.event.inputs.version_name }}" \
+          --output-dir "../dist"
+          
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: generated-apk
+        path: dist/apks/*.apk
+        retention-days: 30
+        
+    - name: Upload build info
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-info
+        path: dist/build-info.json
+        retention-days: 30
+
+    - name: Create GitHub Release
+      if: github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/apks/*.apk
+        tag_name: apk-build-${{ github.run_id }}
+        release_name: "APK - ${{ github.event.inputs.app_name }}"
+        body: |
+          APK gerado automaticamente
+          - App: ${{ github.event.inputs.app_name }}
+          - Package: ${{ github.event.inputs.package_name }}
+          - Version: ${{ github.event.inputs.version_name }}
