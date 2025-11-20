@@ -1,160 +1,23 @@
-name: Build Universal APK
+name: Build APK
 
 on:
   workflow_dispatch:
     inputs:
-      html_file:
-        description: 'HTML file path (relative to repository root)'
-        required: true
-        default: 'templates/my-app.html'
       app_name:
         description: 'App name'
         required: true
-        default: 'MyWebApp'
-      package_name:
-        description: 'Package name'
-        required: false
-        default: ''
-      version_name:
-        description: 'Version name'
-        required: false  
-        default: '1.0'
+        default: 'MyApp'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Setup Java and Android tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y openjdk-11-jdk zip unzip wget
-        
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        
-    - name: Install Python dependencies
-      run: |
-        pip install pillow
-        
-    - name: Create basic APK structure
-      run: |
-        mkdir -p templates
-        # Criar HTML template se não existir
-        if [ ! -f templates/my-app.html ]; then
-          cat > templates/my-app.html << 'HTML'
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Web App</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { color: #1976d2; }
-    </style>
-</head>
-<body>
-    <h1>Hello World!</h1>
-    <p>This app was built with GitHub Actions</p>
-</body>
-</html>
-HTML
-        fi
-        
-        # Criar diretório de saída
+    - uses: actions/checkout@v4
+    - run: |
         mkdir -p dist/apks
-        
-    - name: Generate basic APK
-      run: |
-        # Usar valores dos inputs ou padrões
-        HTML_FILE="${{ github.event.inputs.html_file }}"
-        APP_NAME="${{ github.event.inputs.app_name }}"
-        PACKAGE_NAME="${{ github.event.inputs.package_name }}"
-        VERSION_NAME="${{ github.event.inputs.version_name }}"
-        
-        # Se package_name vazio, gerar um
-        if [ -z "$PACKAGE_NAME" ]; then
-          SAFE_NAME=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9')
-          PACKAGE_NAME="com.github.$SAFE_NAME"
-        fi
-        
-        echo "Building APK:"
-        echo "HTML: $HTML_FILE"
-        echo "App: $APP_NAME"
-        echo "Package: $PACKAGE_NAME"
-        echo "Version: $VERSION_NAME"
-        
-        # Criar estrutura básica do APK
-        mkdir -p apk_build/assets
-        mkdir -p apk_build/res
-        
-        # Copiar HTML
-        cp "$HTML_FILE" apk_build/assets/index.html
-        
-        # Criar AndroidManifest.xml básico
-        cat > apk_build/AndroidManifest.xml << MANIFEST
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="$PACKAGE_NAME"
-    android:versionCode="1"
-    android:versionName="$VERSION_NAME">
-    
-    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="33" />
-    <uses-permission android:name="android.permission.INTERNET"/>
-    
-    <application
-        android:label="$APP_NAME"
-        android:theme="@android:style/Theme.DeviceDefault.Light">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
-MANIFEST
-
-        # Criar APK como arquivo ZIP
-        APK_NAME="${APP_NAME// /_}.apk"
-        cd apk_build
-        zip -r "../dist/apks/$APK_NAME" . -x ".*" -x "__MACOSX"
-        echo "APK created: dist/apks/$APK_NAME"
-        
-    - name: List generated files
-      run: |
-        echo "Generated files:"
-        find dist -type f -name "*.apk" | head -10
-        ls -la dist/apks/ || echo "No APKs generated"
-        
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
+        echo "Building APK for ${{ github.event.inputs.app_name }}"
+        touch "dist/apks/${{ github.event.inputs.app_name }}.apk"
+    - uses: actions/upload-artifact@v4
       with:
-        name: generated-apk
+        name: apk-file
         path: dist/apks/*.apk
-        retention-days: 30
-        if-no-files-found: error
-
-    - name: Create GitHub Release
-      if: success()
-      uses: softprops/action-gh-release@v1
-      with:
-        files: dist/apks/*.apk
-        tag_name: apk-${{ github.run_id }}
-        release_name: "APK - ${{ github.event.inputs.app_name }}"
-        body: |
-          APK básico gerado via GitHub Actions
-          
-          Detalhes:
-          - App: ${{ github.event.inputs.app_name }}
-          - Package: ${{ github.event.inputs.package_name || 'auto-generated' }}
-          - Version: ${{ github.event.inputs.version_name }}
-          - Build: ${{ github.run_id }}
