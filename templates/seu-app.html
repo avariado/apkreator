@@ -1,1 +1,2842 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organizador de Tarefas</title>
+    <style>
+        :root {
+            --primary-color: #4a6987;
+            --secondary-color: #f0f0f0;
+            --border-color: #ccc;
+            --completed-color: gray;
+            --highlight-red: #ff4444;
+            --highlight-blue: #4444ff;
+            --hover-color: #e9e9e9;
+            --selected-task-bg: #dbeafe;
+            --selected-task-color: #0f172a;
+        }
 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+            color: #333;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            font-size: 22px;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #taskInput {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #3a5877;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .list-section {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        #taskList {
+            list-style-type: none;
+        }
+
+        .task-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .task-item:hover {
+            background-color: var(--hover-color);
+        }
+
+        .task-item.selected {
+            background-color: var(--selected-task-bg);
+            color: var(--selected-task-color);
+        }
+
+        .task-item.highlight-red {
+            color: var(--highlight-red);
+            font-weight: bold;
+        }
+
+        .task-item.highlight-blue {
+            color: var(--highlight-blue);
+            font-weight: bold;
+        }
+
+		/* NOVA CLASSE: tarefa vermelha no dia anterior e no próprio dia */
+		.task-item.red-day-before {
+		    color: var(--highlight-red) !important;
+		    font-weight: bold !important;
+		}
+
+        /* Alteração 1: tarefas completadas só cinzento, sem risco */
+        .task-item.completed {
+            color: var(--completed-color) !important;
+            text-decoration: none;
+            font-weight: normal !important;
+        }
+
+        .task-icons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .task-text {
+            flex: 1;
+        }
+
+        .separator {
+            background-color: var(--secondary-color);
+            text-align: center;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .controls button {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .search-container {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-container input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        /* ====== MENU DE CONTEXTO ====== */
+        .context-menu {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            overflow: visible;
+        }
+
+        .context-menu-body {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            min-width: 200px;
+            max-height: 70vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+        }
+
+        .context-menu-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            position: relative;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            font-size: 14px;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .context-menu-item:hover {
+            background-color: var(--hover-color);
+        }
+
+        .context-menu-item.has-submenu::after {
+            content: "▶";
+            position: absolute;
+            right: 10px;
+            font-size: 12px;
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 5px 0;
+        }
+
+        .context-submenu {
+            display: none;
+        }
+
+        .notes-container {
+            margin-top: 20px;
+        }
+
+        .notes-container {
+            display: none;
+        }
+
+        .notes-container.visible {
+            display: block;
+        }
+
+        #notesTextarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            resize: vertical;
+        }
+
+        .status-bar {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        .highlight-options {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-top: 5px;
+        }
+
+        .highlight-option {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .highlight-option input[type="radio"] {
+            margin: 0;
+        }
+
+        .folder-fields {
+            display: flex;
+            gap: 10px;
+        }
+
+        .folder-field {
+            flex: 1;
+        }
+
+        /* ====== CORREÇÕES PARA ANDROID ====== */
+        .context-menu-closing * {
+            pointer-events: none !important;
+        }
+
+        .context-menu,
+        .context-submenu {
+            pointer-events: auto !important;
+        }
+
+        /* ====== MODAL GERIR FAVORITOS ====== */
+        .favorites-list,
+        .programs-list,
+        .documents-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .favorite-item,
+        .program-item,
+        .document-item {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .favorite-item:last-child,
+        .program-item:last-child,
+        .document-item:last-child {
+            border-bottom: none;
+        }
+
+        .favorite-item.selected,
+        .program-item.selected,
+        .document-item.selected {
+            background-color: var(--selected-task-bg);
+        }
+
+        .favorite-label,
+        .program-label,
+        .document-label {
+            flex: 1;
+            font-weight: bold;
+        }
+
+        .favorite-url,
+        .program-path,
+        .document-path {
+            flex: 2;
+            color: #666;
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .favorites-controls,
+        .programs-controls,
+        .documents-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .favorites-controls button,
+        .programs-controls button,
+        .documents-controls button {
+            flex: 1;
+        }
+
+        .favorite-form,
+        .program-form,
+        .document-form {
+            background-color: var(--secondary-color);
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+
+        /* ====== Responsivo ====== */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .input-section {
+                flex-direction: column;
+            }
+
+            .search-container {
+                flex-wrap: wrap;
+            }
+
+            .search-container input {
+                flex: 1 1 100%;
+            }
+
+            #searchBtn,
+            #nextResultBtn {
+                flex: 1 1 calc(50% - 5px);
+            }
+
+            .controls-row {
+                flex-wrap: wrap;
+            }
+
+            .controls-row:first-child button {
+                flex: 1 1 calc(50% - 5px);
+            }
+
+            #moveUpBtn { order: 1; }
+            #moveDownBtn { order: 2; }
+            #removeTaskBtn { order: 3; }
+            #clearAllBtn { order: 4; }
+            #importBtn { order: 5; }
+            #exportBtn { order: 6; }
+
+            .controls-row:last-child button {
+                flex: 1 1 calc(50% - 5px);
+            }
+
+            .search-container {
+                flex-direction: row;
+            }
+
+            .context-menu-body {
+                min-width: 180px;
+                font-size: 14px;
+            }
+
+            .context-menu-item {
+                padding: 12px 15px;
+            }
+
+            .favorite-item,
+            .program-item,
+            .document-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+
+            .favorite-label,
+            .favorite-url,
+            .program-label,
+            .program-path,
+            .document-label,
+            .document-path {
+                flex: none;
+                width: 100%;
+            }
+
+            .favorites-controls,
+            .programs-controls,
+            .documents-controls {
+                flex-wrap: wrap;
+            }
+
+            .favorites-controls button,
+            .programs-controls button,
+            .documents-controls button {
+                flex: 1 1 calc(50% - 5px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Organizador de Tarefas</h1>
+
+        <div class="input-section">
+            <textarea id="taskInput" placeholder="Digite uma nova tarefa..."></textarea>
+            <button id="addTaskBtn">Adicionar Tarefa</button>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Procurar tarefas...">
+            <button id="searchBtn">Procurar</button>
+            <button id="nextResultBtn" disabled>Próximo</button>
+        </div>
+
+        <div class="list-section">
+            <ul id="taskList"></ul>
+        </div>
+
+        <div class="controls">
+            <div class="controls-row">
+                <button id="moveUpBtn">▲ Subir</button>
+                <button id="moveDownBtn">▼ Descer</button>
+                <button id="removeTaskBtn">Remover</button>
+                <button id="clearAllBtn">Limpar Todas</button>
+                <button id="importBtn">Importar</button>
+                <button id="exportBtn">Exportar</button>
+            </div>
+            <div class="controls-row">
+                <button id="propertiesBtn">Propriedades</button>
+                <button id="notesBtn">Notas</button>
+            </div>
+        </div>
+
+        <div class="notes-container" id="notesContainer">
+            <textarea id="notesTextarea" placeholder="Digite suas notas aqui..."></textarea>
+        </div>
+
+        <div class="status-bar">
+            <span id="statusText">Pronto</span>
+        </div>
+    </div>
+
+    <div id="propertiesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Propriedades da Tarefa</div>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="propertiesTaskText">Tarefa:</label>
+                <textarea id="propertiesTaskText"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Pastas:</label>
+                <div class="folder-fields">
+                    <div class="folder-field">
+                        <label for="propertiesPersonalFolder">Pasta Pessoal:</label>
+                        <input type="text" id="propertiesPersonalFolder">
+                    </div>
+                    <div class="folder-field">
+                        <label for="propertiesSharedFolder">Pasta Partilhada:</label>
+                        <input type="text" id="propertiesSharedFolder">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="propertiesLink">Link:</label>
+                <input type="text" id="propertiesLink">
+            </div>
+            <div class="form-group">
+                <label for="propertiesDate">Data (DD-MM-AAAA):</label>
+                <input type="text" id="propertiesDate">
+            </div>
+            <div class="form-group">
+                <label>Destaque:</label>
+                <div class="highlight-options">
+                    <div class="highlight-option">
+                        <input type="radio" id="highlightNone" name="highlight" value="none" checked>
+                        <label for="highlightNone">Nenhum</label>
+                    </div>
+                    <div class="highlight-option">
+                        <input type="radio" id="highlightRed" name="highlight" value="red">
+                        <label for="highlightRed">Vermelho</label>
+                    </div>
+                    <div class="highlight-option">
+                        <input type="radio" id="highlightBlue" name="highlight" value="blue">
+                        <label for="highlightBlue">Azul</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="savePropertiesBtn">Salvar</button>
+                <button id="cancelPropertiesBtn">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL GERIR FAVORITOS -->
+    <div id="favoritesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Gerir Favoritos</div>
+                <button class="close-btn">&times;</button>
+            </div>
+            
+            <div class="favorites-controls">
+                <button id="favoriteUpBtn">▲ Cima</button>
+                <button id="favoriteDownBtn">▼ Baixo</button>
+                <button id="newFavoriteBtn">Novo</button>
+                <button id="openFavoriteBtn">Abrir</button>
+                <button id="editFavoriteBtn">Editar</button>
+                <button id="removeFavoriteBtn">Remover</button>
+            </div>
+
+            <div class="favorites-list" id="favoritesList">
+                <!-- Lista de favoritos será gerada dinamicamente -->
+            </div>
+
+            <div class="favorite-form" id="favoriteForm" style="display: none;">
+                <div class="form-group">
+                    <label for="favoriteLabel">Nome:</label>
+                    <input type="text" id="favoriteLabel" placeholder="Nome do favorito">
+                </div>
+                <div class="form-group">
+                    <label for="favoriteUrl">URL:</label>
+                    <input type="text" id="favoriteUrl" placeholder="https://exemplo.com">
+                </div>
+                <div class="modal-actions">
+                    <button id="saveFavoriteBtn">Salvar</button>
+                    <button id="cancelFavoriteBtn">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL GERIR PROGRAMAS -->
+    <div id="programsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Gerir Programas</div>
+                <button class="close-btn">&times;</button>
+            </div>
+            
+            <div class="programs-controls">
+                <button id="programUpBtn">▲ Cima</button>
+                <button id="programDownBtn">▼ Baixo</button>
+                <button id="newProgramBtn">Novo</button>
+                <button id="openProgramBtn">Abrir</button>
+                <button id="editProgramBtn">Editar</button>
+                <button id="removeProgramBtn">Remover</button>
+            </div>
+
+            <div class="programs-list" id="programsList">
+                <!-- Lista de programas será gerada dinamicamente -->
+            </div>
+
+            <div class="program-form" id="programForm" style="display: none;">
+                <div class="form-group">
+                    <label for="programLabel">Nome:</label>
+                    <input type="text" id="programLabel" placeholder="Nome do programa">
+                </div>
+                <div class="form-group">
+                    <label for="programPath">Caminho:</label>
+                    <input type="text" id="programPath" placeholder="C:\Programas\exemplo.exe">
+                </div>
+                <div class="modal-actions">
+                    <button id="saveProgramBtn">Salvar</button>
+                    <button id="cancelProgramBtn">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL GERIR DOCUMENTOS -->
+    <div id="documentsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Gerir Documentos</div>
+                <button class="close-btn">&times;</button>
+            </div>
+            
+            <div class="documents-controls">
+                <button id="documentUpBtn">▲ Cima</button>
+                <button id="documentDownBtn">▼ Baixo</button>
+                <button id="newDocumentBtn">Novo</button>
+                <button id="openDocumentBtn">Abrir</button>
+                <button id="editDocumentBtn">Editar</button>
+                <button id="removeDocumentBtn">Remover</button>
+            </div>
+
+            <div class="documents-list" id="documentsList">
+                <!-- Lista de documentos será gerada dinamicamente -->
+            </div>
+
+            <div class="document-form" id="documentForm" style="display: none;">
+                <div class="form-group">
+                    <label for="documentLabel">Nome:</label>
+                    <input type="text" id="documentLabel" placeholder="Nome do documento">
+                </div>
+                <div class="form-group">
+                    <label for="documentPath">Caminho:</label>
+                    <input type="text" id="documentPath" placeholder="C:\Documentos\exemplo.pdf">
+                </div>
+                <div class="modal-actions">
+                    <button id="saveDocumentBtn">Salvar</button>
+                    <button id="cancelDocumentBtn">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MENU DE CONTEXTO -->
+    <div id="contextMenu" class="context-menu">
+        <div id="contextMenuBody" class="context-menu-body">
+            <div class="context-menu-item" data-action="toggleComplete">Marcar como Completada</div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="edit">Editar Tarefa</div>
+            <div class="context-menu-item" data-action="remove">Remover Tarefa</div>
+            <div class="context-menu-separator"></div>
+
+            <div class="context-menu-item has-submenu">
+                Pasta
+                <div class="context-submenu">
+                    <div class="context-menu-item" data-action="openPersonalFolder">Abrir Pasta Pessoal</div>
+                    <div class="context-menu-item" data-action="openSharedFolder">Abrir Pasta Partilhada</div>
+                    <div class="context-menu-separator"></div>
+                    <div class="context-menu-item" data-action="removePersonalFolder">Remover Pasta Pessoal</div>
+                    <div class="context-menu-item" data-action="removeSharedFolder">Remover Pasta Partilhada</div>
+                </div>
+            </div>
+
+            <div class="context-menu-separator"></div>
+
+            <div class="context-menu-item has-submenu">
+                Link
+                <div class="context-submenu">
+                    <div class="context-menu-item" data-action="openLink">Abrir Link</div>
+                    <!-- ALTERAÇÃO 3: Opção "Definir Link" removida -->
+                    <div class="context-menu-item" data-action="removeLink">Remover Link</div>
+                </div>
+            </div>
+
+            <div class="context-menu-separator"></div>
+
+            <div class="context-menu-item has-submenu">
+                Data
+                <div class="context-submenu">
+                    <div class="context-menu-item" data-action="addDate">Definir Data</div>
+                    <div class="context-menu-item" data-action="removeDate">Remover Data</div>
+                </div>
+            </div>
+
+            <div class="context-menu-separator"></div>
+
+            <div class="context-menu-item has-submenu">
+                Destacar
+                <div class="context-submenu">
+                    <div class="context-menu-item" data-action="highlightRed">Vermelho</div>
+                    <div class="context-menu-item" data-action="highlightBlue">Azul</div>
+                    <div class="context-menu-item" data-action="removeHighlight">Nenhum</div>
+                </div>
+            </div>
+
+            <div class="context-menu-separator"></div>
+
+            <div class="context-menu-item has-submenu">
+                Separador
+                <div class="context-submenu">
+                    <div class="context-menu-item" data-action="insertSeparator">Inserir Separador</div>
+                    <div class="context-menu-item" data-action="removeSeparator">Remover Separador</div>
+                </div>
+            </div>
+
+            <div class="context-menu-separator"></div>
+
+            <div class="context-menu-item" data-action="generateReport">Relatório</div>
+
+            <div class="context-menu-separator"></div>
+
+            <div class="context-menu-item has-submenu">
+                Gerir
+                <div class="context-submenu" id="manageSubmenu">
+                    <div class="context-menu-item" data-action="managePrograms">Programas</div>
+                    <div class="context-menu-item" data-action="manageDocuments">Documentos</div>
+                    <div class="context-menu-item" data-action="manageFavorites">Favoritos</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ALERTA DO DIA (NOVO) -->
+    <div id="dayAlertModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">📅 Lembrete de Tarefas</div>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="form-group">
+                <p id="dayAlertMessage">Você tem tarefas agendadas para hoje!</p>
+            </div>
+            <div class="modal-actions">
+                <button id="closeDayAlertBtn">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" class="file-input" accept=".json">
+
+    <script>
+        // =========================
+        // ESTADO
+        // =========================
+        let tasks = [];
+        let notes = "";
+        let lastWarningDate = null;
+        let execMenu = {
+            programs: [],
+            programsFolder: null,
+            favorites: [],
+            linksFolder: null,
+            documents: [],
+            documentsFolder: null
+        };
+
+        let selectedTaskIndex = -1;
+        let searchResults = [];
+        let currentSearchIndex = -1;
+        let searchTerm = "";
+        let notesVisible = false;
+        let currentContextTaskIndex = -1;
+
+        // submenus destacados
+        let openSubmenuEl = null;
+        let openSubmenuParent = null;
+        let submenuCloseTimer = null;
+
+        // estado para gestão de favoritos
+        let selectedFavoriteIndex = -1;
+        let isEditingFavorite = false;
+
+        // estado para gestão de programas
+        let selectedProgramIndex = -1;
+        let isEditingProgram = false;
+
+        // estado para gestão de documentos
+        let selectedDocumentIndex = -1;
+        let isEditingDocument = false;
+
+        // =========================
+        // DOM
+        // =========================
+        const taskInput = document.getElementById('taskInput');
+        const addTaskBtn = document.getElementById('addTaskBtn');
+        const taskList = document.getElementById('taskList');
+        const moveUpBtn = document.getElementById('moveUpBtn');
+        const moveDownBtn = document.getElementById('moveDownBtn');
+        const propertiesBtn = document.getElementById('propertiesBtn');
+        const removeTaskBtn = document.getElementById('removeTaskBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const importBtn = document.getElementById('importBtn');
+        const notesBtn = document.getElementById('notesBtn');
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const nextResultBtn = document.getElementById('nextResultBtn');
+        const notesTextarea = document.getElementById('notesTextarea');
+        const notesContainer = document.getElementById('notesContainer');
+        const statusText = document.getElementById('statusText');
+        const propertiesModal = document.getElementById('propertiesModal');
+        const contextMenu = document.getElementById('contextMenu');
+        const contextMenuBody = document.getElementById('contextMenuBody');
+        const fileInput = document.getElementById('fileInput');
+        const manageSubmenu = document.getElementById('manageSubmenu');
+        const dayAlertModal = document.getElementById('dayAlertModal');
+        const dayAlertMessage = document.getElementById('dayAlertMessage');
+        const closeDayAlertBtn = document.getElementById('closeDayAlertBtn');
+
+        // Elementos do modal de favoritos
+        const favoritesModal = document.getElementById('favoritesModal');
+        const favoritesList = document.getElementById('favoritesList');
+        const favoriteUpBtn = document.getElementById('favoriteUpBtn');
+        const favoriteDownBtn = document.getElementById('favoriteDownBtn');
+        const newFavoriteBtn = document.getElementById('newFavoriteBtn');
+        const openFavoriteBtn = document.getElementById('openFavoriteBtn');
+        const editFavoriteBtn = document.getElementById('editFavoriteBtn');
+        const removeFavoriteBtn = document.getElementById('removeFavoriteBtn');
+        const favoriteForm = document.getElementById('favoriteForm');
+        const favoriteLabel = document.getElementById('favoriteLabel');
+        const favoriteUrl = document.getElementById('favoriteUrl');
+        const saveFavoriteBtn = document.getElementById('saveFavoriteBtn');
+        const cancelFavoriteBtn = document.getElementById('cancelFavoriteBtn');
+
+        // Elementos do modal de programas
+        const programsModal = document.getElementById('programsModal');
+        const programsList = document.getElementById('programsList');
+        const programUpBtn = document.getElementById('programUpBtn');
+        const programDownBtn = document.getElementById('programDownBtn');
+        const newProgramBtn = document.getElementById('newProgramBtn');
+        const openProgramBtn = document.getElementById('openProgramBtn');
+        const editProgramBtn = document.getElementById('editProgramBtn');
+        const removeProgramBtn = document.getElementById('removeProgramBtn');
+        const programForm = document.getElementById('programForm');
+        const programLabel = document.getElementById('programLabel');
+        const programPath = document.getElementById('programPath');
+        const saveProgramBtn = document.getElementById('saveProgramBtn');
+        const cancelProgramBtn = document.getElementById('cancelProgramBtn');
+
+        // Elementos do modal de documentos
+        const documentsModal = document.getElementById('documentsModal');
+        const documentsList = document.getElementById('documentsList');
+        const documentUpBtn = document.getElementById('documentUpBtn');
+        const documentDownBtn = document.getElementById('documentDownBtn');
+        const newDocumentBtn = document.getElementById('newDocumentBtn');
+        const openDocumentBtn = document.getElementById('openDocumentBtn');
+        const editDocumentBtn = document.getElementById('editDocumentBtn');
+        const removeDocumentBtn = document.getElementById('removeDocumentBtn');
+        const documentForm = document.getElementById('documentForm');
+        const documentLabel = document.getElementById('documentLabel');
+        const documentPath = document.getElementById('documentPath');
+        const saveDocumentBtn = document.getElementById('saveDocumentBtn');
+        const cancelDocumentBtn = document.getElementById('cancelDocumentBtn');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTasks();
+            updateTaskList();
+            setupEventListeners();
+            updateStatus('Pronto');
+            
+            // NOVO: Verificar alertas do dia após carregar
+            setTimeout(checkDayAlerts, 1000);
+        });
+
+        // =========================
+        // NOVAS FUNCIONALIDADES
+        // =========================
+
+        // Função para verificar se é o dia anterior
+        function isDayBefore(targetDate) {
+            const today = new Date();
+            const target = parseDate(targetDate);
+            if (!target) return false;
+            
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            
+            return target.getDate() === tomorrow.getDate() &&
+                   target.getMonth() === tomorrow.getMonth() &&
+                   target.getFullYear() === tomorrow.getFullYear();
+        }
+
+        // Função para verificar se é o dia agendado
+        function isScheduledDay(targetDate) {
+            const today = new Date();
+            const target = parseDate(targetDate);
+            if (!target) return false;
+            
+            return target.getDate() === today.getDate() &&
+                   target.getMonth() === today.getMonth() &&
+                   target.getFullYear() === today.getFullYear();
+        }
+
+        // Função para parse de datas no formato DD-MM-AAAA
+        function parseDate(dateString) {
+            if (!dateString) return null;
+            
+            const parts = dateString.split('-');
+            if (parts.length !== 3) return null;
+            
+            const day = parseInt(parts[0]);
+            const month = parseInt(parts[1]) - 1;
+            const year = parseInt(parts[2]);
+            
+            if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+            
+            return new Date(year, month, day);
+        }
+
+        // Função para aplicar estilos de véspera
+        function applyDayBeforeStyles() {
+            const taskItems = document.querySelectorAll('.task-item');
+            taskItems.forEach(item => {
+                // Remover classe anterior
+                item.classList.remove('red-day-before');
+                
+                // Encontrar o índice da tarefa
+                const index = Array.from(taskList.children).indexOf(item);
+                if (index !== -1 && index < tasks.length) {
+                    const task = tasks[index];
+                    if (task.date && (isDayBefore(task.date) || isScheduledDay(task.date))) {
+                        item.classList.add('red-day-before');
+                    }
+                }
+            });
+        }
+
+        // Função para verificar alertas do dia - CORRIGIDA
+        function checkDayAlerts() {
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const lastAlert = localStorage.getItem('lastDayAlert');
+            
+            // Se já mostrou alerta hoje, não mostrar
+            if (lastAlert === today) {
+                return;
+            }
+
+            const todayTasks = tasks.filter(task => 
+                task.date && isScheduledDay(task.date) && !task.completed
+            );
+
+            if (todayTasks.length > 0) {
+                showDayAlert(todayTasks);
+                localStorage.setItem('lastDayAlert', today);
+            }
+        }
+
+        // Função para mostrar alerta do dia
+        function showDayAlert(todayTasks) {
+            let message = `Você tem ${todayTasks.length} tarefa(s) agendada(s) para hoje:\n\n`;
+            
+            todayTasks.forEach((task, index) => {
+                const shortText = task.text.length > 50 ? task.text.substring(0, 47) + '...' : task.text;
+                message += `${index + 1}. ${shortText}\n`;
+            });
+
+            dayAlertMessage.textContent = message;
+            dayAlertModal.style.display = 'flex';
+        }
+
+        // NOVA FUNÇÃO: Resetar o alerta quando uma data é definida
+        function resetDayAlert() {
+            localStorage.removeItem('lastDayAlert');
+        }
+
+        // NOVA FUNÇÃO: Chamar checkDayAlerts quando uma data é definida
+        function triggerDayAlertCheck() {
+            // Pequeno delay para garantir que a tarefa já foi salva
+            setTimeout(() => {
+                resetDayAlert(); // RESET: permite que o alerta apareça novamente
+                applyDayBeforeStyles();
+            }, 100);
+        }
+
+        // =========================
+        // FUNÇÕES EXISTENTES (MODIFICADAS)
+        // =========================
+
+        function setupEventListeners() {
+            addTaskBtn.addEventListener('click', addTask);
+            moveUpBtn.addEventListener('click', moveTaskUp);
+            moveDownBtn.addEventListener('click', moveTaskDown);
+            propertiesBtn.addEventListener('click', openProperties);
+            removeTaskBtn.addEventListener('click', removeTask);
+            clearAllBtn.addEventListener('click', clearAllTasks);
+            exportBtn.addEventListener('click', exportToJSON);
+            importBtn.addEventListener('click', () => fileInput.click());
+            notesBtn.addEventListener('click', toggleNotes);
+
+            searchBtn.addEventListener('click', executeSearch);
+            nextResultBtn.addEventListener('click', nextSearchResult);
+            searchInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') executeSearch();
+            });
+
+            // Fechar modais
+            document.querySelectorAll('.close-btn').forEach(btn => {
+                btn.addEventListener('click', closeModals);
+            });
+            document.getElementById('savePropertiesBtn').addEventListener('click', saveProperties);
+            document.getElementById('cancelPropertiesBtn').addEventListener('click', closeModals);
+            closeDayAlertBtn.addEventListener('click', () => {
+                dayAlertModal.style.display = 'none';
+            });
+
+            // Event listeners para gestão de favoritos
+            favoriteUpBtn.addEventListener('click', moveFavoriteUp);
+            favoriteDownBtn.addEventListener('click', moveFavoriteDown);
+            newFavoriteBtn.addEventListener('click', newFavorite);
+            openFavoriteBtn.addEventListener('click', openFavorite);
+            editFavoriteBtn.addEventListener('click', editFavorite);
+            removeFavoriteBtn.addEventListener('click', removeFavorite);
+            saveFavoriteBtn.addEventListener('click', saveFavorite);
+            cancelFavoriteBtn.addEventListener('click', cancelFavoriteEdit);
+
+            // Event listeners para gestão de programas
+            programUpBtn.addEventListener('click', moveProgramUp);
+            programDownBtn.addEventListener('click', moveProgramDown);
+            newProgramBtn.addEventListener('click', newProgram);
+            openProgramBtn.addEventListener('click', openProgram);
+            editProgramBtn.addEventListener('click', editProgram);
+            removeProgramBtn.addEventListener('click', removeProgram);
+            saveProgramBtn.addEventListener('click', saveProgram);
+            cancelProgramBtn.addEventListener('click', cancelProgramEdit);
+
+            // Event listeners para gestão de documentos
+            documentUpBtn.addEventListener('click', moveDocumentUp);
+            documentDownBtn.addEventListener('click', moveDocumentDown);
+            newDocumentBtn.addEventListener('click', newDocument);
+            openDocumentBtn.addEventListener('click', openDocument);
+            editDocumentBtn.addEventListener('click', editDocument);
+            removeDocumentBtn.addEventListener('click', removeDocument);
+            saveDocumentBtn.addEventListener('click', saveDocument);
+            cancelDocumentBtn.addEventListener('click', cancelDocumentEdit);
+
+            // MENU DE CONTEXTO - rato
+            taskList.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                const taskItem = e.target.closest('.task-item');
+                if (taskItem) showContextMenu(e, taskItem);
+                return false;
+            });
+
+            // listener único para o menu de contexto
+            contextMenuBody.addEventListener('click', handleMenuClick);
+            
+            // cliques em submenus destacados
+            document.addEventListener('click', handleDetachedSubmenuClick, true);
+
+            // touch (Android)
+            document.addEventListener('touchstart', handleMenuTouch, {capture: true, passive: false});
+
+            // long press Android
+            let longPressTimer;
+            taskList.addEventListener('touchstart', function(e) {
+                if (document.body.classList.contains('context-menu-closing')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+                
+                const taskItem = e.target.closest('.task-item');
+                if (taskItem) {
+                    longPressTimer = setTimeout(() => {
+                        e.preventDefault();
+                        showContextMenu(e, taskItem);
+                    }, 500);
+                }
+            }, {passive: false});
+
+            taskList.addEventListener('touchend', function() {
+                clearTimeout(longPressTimer);
+            });
+
+            taskList.addEventListener('touchmove', function() {
+                clearTimeout(longPressTimer);
+            });
+
+            // clique na lista
+            taskList.addEventListener('click', function(e) {
+                if (document.body.classList.contains('context-menu-closing')) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return;
+                }
+                
+                const taskItem = e.target.closest('.task-item');
+                if (taskItem && !e.defaultPrevented) {
+                    const index = Array.from(taskList.children).indexOf(taskItem);
+                    selectTask(index);
+                }
+            });
+
+            // fechar ao clicar fora
+            document.addEventListener('click', function(e) {
+                if (contextMenu.style.display === 'block'
+                    && !contextMenu.contains(e.target)
+                    && (!openSubmenuEl || !openSubmenuEl.contains(e.target))) {
+                    hideContextMenu();
+                }
+            });
+
+            // ESC
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    hideContextMenu();
+                    closeModals();
+                }
+            });
+
+            // impedir scroll "por baixo" no Android
+            let menuTouchStartY = 0;
+            contextMenuBody.addEventListener('touchstart', function(e) {
+                if (e.touches && e.touches.length === 1) {
+                    menuTouchStartY = e.touches[0].clientY;
+                }
+            }, {passive: true});
+
+            contextMenuBody.addEventListener('touchmove', function(e) {
+                const el = contextMenuBody;
+                const scrollTop = el.scrollTop;
+                const scrollHeight = el.scrollHeight;
+                const offsetHeight = el.offsetHeight;
+
+                const currentY = e.touches[0].clientY;
+                const isDown = currentY < menuTouchStartY;
+                const isUp = currentY > menuTouchStartY;
+
+                const atTop = scrollTop === 0;
+                const atBottom = scrollTop + offsetHeight >= scrollHeight - 1;
+
+                if ((atTop && isUp) || (atBottom && isDown)) {
+                    e.preventDefault();
+                }
+                e.stopPropagation();
+            }, {passive: false});
+
+            fileInput.addEventListener('change', importFromJSON);
+
+            // atalhos
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.key === 'f') {
+                    e.preventDefault();
+                    searchInput.focus();
+                }
+                if (e.key === 'F3') {
+                    e.preventDefault();
+                    nextSearchResult();
+                }
+            });
+
+            // inicializar lógica de submenus
+            initSubmenus();
+        }
+
+        // ====== FUNÇÕES DE GESTÃO DE FAVORITOS ======
+        function openManageFavorites() {
+            updateFavoritesList();
+            favoritesModal.style.display = 'flex';
+            selectedFavoriteIndex = -1;
+            updateFavoriteControls();
+            favoriteForm.style.display = 'none';
+        }
+
+        function updateFavoritesList() {
+            favoritesList.innerHTML = '';
+            
+            execMenu.favorites.forEach((favorite, index) => {
+                const div = document.createElement('div');
+                div.className = 'favorite-item';
+                if (index === selectedFavoriteIndex) {
+                    div.classList.add('selected');
+                }
+                
+                div.innerHTML = `
+                    <div class="favorite-label">${favorite.label || 'Sem nome'}</div>
+                    <div class="favorite-url">${favorite.url || 'Sem URL'}</div>
+                `;
+                
+                // Clique simples para selecionar
+                div.addEventListener('click', () => {
+                    selectedFavoriteIndex = index;
+                    updateFavoritesList();
+                    updateFavoriteControls();
+                });
+                
+                // Duplo clique/duplo tap para abrir o link
+                div.addEventListener('dblclick', () => {
+                    selectedFavoriteIndex = index;
+                    updateFavoritesList();
+                    updateFavoriteControls();
+                    openFavorite();
+                });
+                
+                // Para Android: duplo tap
+                let tapCount = 0;
+                let tapTimer;
+                div.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    tapCount++;
+                    if (tapCount === 1) {
+                        tapTimer = setTimeout(() => {
+                            tapCount = 0;
+                            // Clique simples
+                            selectedFavoriteIndex = index;
+                            updateFavoritesList();
+                            updateFavoriteControls();
+                        }, 300);
+                    } else if (tapCount === 2) {
+                        clearTimeout(tapTimer);
+                        tapCount = 0;
+                        // Duplo tap - abrir link
+                        selectedFavoriteIndex = index;
+                        updateFavoritesList();
+                        updateFavoriteControls();
+                        openFavorite();
+                    }
+                }, {passive: false});
+                
+                favoritesList.appendChild(div);
+            });
+        }
+
+        function updateFavoriteControls() {
+            const hasSelection = selectedFavoriteIndex !== -1;
+            const hasFavorites = execMenu.favorites.length > 0;
+            
+            favoriteUpBtn.disabled = !hasSelection || selectedFavoriteIndex === 0;
+            favoriteDownBtn.disabled = !hasSelection || selectedFavoriteIndex === execMenu.favorites.length - 1;
+            openFavoriteBtn.disabled = !hasSelection;
+            editFavoriteBtn.disabled = !hasSelection;
+            removeFavoriteBtn.disabled = !hasSelection;
+        }
+
+        function moveFavoriteUp() {
+            if (selectedFavoriteIndex <= 0) return;
+            [execMenu.favorites[selectedFavoriteIndex], execMenu.favorites[selectedFavoriteIndex - 1]] = 
+            [execMenu.favorites[selectedFavoriteIndex - 1], execMenu.favorites[selectedFavoriteIndex]];
+            selectedFavoriteIndex--;
+            updateFavoritesList();
+            saveTasks();
+        }
+
+        function moveFavoriteDown() {
+            if (selectedFavoriteIndex >= execMenu.favorites.length - 1) return;
+            [execMenu.favorites[selectedFavoriteIndex], execMenu.favorites[selectedFavoriteIndex + 1]] = 
+            [execMenu.favorites[selectedFavoriteIndex + 1], execMenu.favorites[selectedFavoriteIndex]];
+            selectedFavoriteIndex++;
+            updateFavoritesList();
+            saveTasks();
+        }
+
+        function newFavorite() {
+            isEditingFavorite = false;
+            favoriteLabel.value = '';
+            favoriteUrl.value = '';
+            favoriteForm.style.display = 'block';
+            favoriteLabel.focus();
+        }
+
+        function editFavorite() {
+            if (selectedFavoriteIndex === -1) return;
+            
+            const favorite = execMenu.favorites[selectedFavoriteIndex];
+            favoriteLabel.value = favorite.label || '';
+            favoriteUrl.value = favorite.url || '';
+            isEditingFavorite = true;
+            favoriteForm.style.display = 'block';
+            favoriteLabel.focus();
+        }
+
+        function openFavorite() {
+            if (selectedFavoriteIndex === -1) return;
+            
+            const favorite = execMenu.favorites[selectedFavoriteIndex];
+            if (favorite.url) {
+                window.open(favorite.url, '_blank');
+            }
+        }
+
+        function removeFavorite() {
+            if (selectedFavoriteIndex === -1) return;
+            
+            const favorite = execMenu.favorites[selectedFavoriteIndex];
+            if (confirm(`Tem a certeza que pretende eliminar o favorito "${favorite.label}"?`)) {
+                execMenu.favorites.splice(selectedFavoriteIndex, 1);
+                selectedFavoriteIndex = Math.min(selectedFavoriteIndex, execMenu.favorites.length - 1);
+                updateFavoritesList();
+                updateFavoriteControls();
+                saveTasks();
+            }
+        }
+
+        function saveFavorite() {
+            const label = favoriteLabel.value.trim();
+            const url = favoriteUrl.value.trim();
+            
+            if (!label) {
+                alert('Por favor, introduza um nome para o favorito.');
+                return;
+            }
+            
+            if (!url) {
+                alert('Por favor, introduza um URL para o favorito.');
+                return;
+            }
+            
+            // Validar URL básica
+            let finalUrl = url;
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                finalUrl = 'https://' + url;
+            }
+            
+            if (isEditingFavorite) {
+                // Editar favorito existente
+                execMenu.favorites[selectedFavoriteIndex] = {
+                    label: label,
+                    url: finalUrl
+                };
+            } else {
+                // Novo favorito
+                execMenu.favorites.push({
+                    label: label,
+                    url: finalUrl
+                });
+                selectedFavoriteIndex = execMenu.favorites.length - 1;
+            }
+            
+            updateFavoritesList();
+            updateFavoriteControls();
+            favoriteForm.style.display = 'none';
+            saveTasks();
+        }
+
+        function cancelFavoriteEdit() {
+            favoriteForm.style.display = 'none';
+        }
+
+        // ====== FUNÇÕES DE GESTÃO DE PROGRAMAS ======
+        function openManagePrograms() {
+            updateProgramsList();
+            programsModal.style.display = 'flex';
+            selectedProgramIndex = -1;
+            updateProgramControls();
+            programForm.style.display = 'none';
+        }
+
+        function updateProgramsList() {
+            programsList.innerHTML = '';
+            
+            execMenu.programs.forEach((program, index) => {
+                const div = document.createElement('div');
+                div.className = 'program-item';
+                if (index === selectedProgramIndex) {
+                    div.classList.add('selected');
+                }
+                
+                div.innerHTML = `
+                    <div class="program-label">${program.label || 'Sem nome'}</div>
+                    <div class="program-path">${program.path || 'Sem caminho'}</div>
+                `;
+                
+                // Clique simples para selecionar
+                div.addEventListener('click', () => {
+                    selectedProgramIndex = index;
+                    updateProgramsList();
+                    updateProgramControls();
+                });
+                
+                // Duplo clique/duplo tap para abrir programa
+                div.addEventListener('dblclick', () => {
+                    selectedProgramIndex = index;
+                    updateProgramsList();
+                    updateProgramControls();
+                    openProgram();
+                });
+                
+                // Para Android: duplo tap
+                let tapCount = 0;
+                let tapTimer;
+                div.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    tapCount++;
+                    if (tapCount === 1) {
+                        tapTimer = setTimeout(() => {
+                            tapCount = 0;
+                            // Clique simples
+                            selectedProgramIndex = index;
+                            updateProgramsList();
+                            updateProgramControls();
+                        }, 300);
+                    } else if (tapCount === 2) {
+                        clearTimeout(tapTimer);
+                        tapCount = 0;
+                        // Duplo tap - abrir programa
+                        selectedProgramIndex = index;
+                        updateProgramsList();
+                        updateProgramControls();
+                        openProgram();
+                    }
+                }, {passive: false});
+                
+                programsList.appendChild(div);
+            });
+        }
+
+        function updateProgramControls() {
+            const hasSelection = selectedProgramIndex !== -1;
+            const hasPrograms = execMenu.programs.length > 0;
+            
+            programUpBtn.disabled = !hasSelection || selectedProgramIndex === 0;
+            programDownBtn.disabled = !hasSelection || selectedProgramIndex === execMenu.programs.length - 1;
+            openProgramBtn.disabled = !hasSelection;
+            editProgramBtn.disabled = !hasSelection;
+            removeProgramBtn.disabled = !hasSelection;
+        }
+
+        function moveProgramUp() {
+            if (selectedProgramIndex <= 0) return;
+            [execMenu.programs[selectedProgramIndex], execMenu.programs[selectedProgramIndex - 1]] = 
+            [execMenu.programs[selectedProgramIndex - 1], execMenu.programs[selectedProgramIndex]];
+            selectedProgramIndex--;
+            updateProgramsList();
+            saveTasks();
+        }
+
+        function moveProgramDown() {
+            if (selectedProgramIndex >= execMenu.programs.length - 1) return;
+            [execMenu.programs[selectedProgramIndex], execMenu.programs[selectedProgramIndex + 1]] = 
+            [execMenu.programs[selectedProgramIndex + 1], execMenu.programs[selectedProgramIndex]];
+            selectedProgramIndex++;
+            updateProgramsList();
+            saveTasks();
+        }
+
+        function newProgram() {
+            isEditingProgram = false;
+            programLabel.value = '';
+            programPath.value = '';
+            programForm.style.display = 'block';
+            programLabel.focus();
+        }
+
+        function editProgram() {
+            if (selectedProgramIndex === -1) return;
+            
+            const program = execMenu.programs[selectedProgramIndex];
+            programLabel.value = program.label || '';
+            programPath.value = program.path || '';
+            isEditingProgram = true;
+            programForm.style.display = 'block';
+            programLabel.focus();
+        }
+
+        function openProgram() {
+            if (selectedProgramIndex === -1) return;
+            
+            const program = execMenu.programs[selectedProgramIndex];
+            if (program.path) {
+                // Emitir aviso de indisponibilidade e copiar caminho
+                copyToClipboard(program.path);
+                alert(`Funcionalidade indisponível na versão web.\n\nO caminho do programa foi copiado para a área de transferência:\n${program.path}`);
+            }
+        }
+
+        function removeProgram() {
+            if (selectedProgramIndex === -1) return;
+            
+            const program = execMenu.programs[selectedProgramIndex];
+            if (confirm(`Tem a certeza que pretende eliminar o programa "${program.label}"?`)) {
+                execMenu.programs.splice(selectedProgramIndex, 1);
+                selectedProgramIndex = Math.min(selectedProgramIndex, execMenu.programs.length - 1);
+                updateProgramsList();
+                updateProgramControls();
+                saveTasks();
+            }
+        }
+
+        function saveProgram() {
+            const label = programLabel.value.trim();
+            const path = programPath.value.trim();
+            
+            if (!label) {
+                alert('Por favor, introduza um nome para o programa.');
+                return;
+            }
+            
+            if (!path) {
+                alert('Por favor, introduza um caminho para o programa.');
+                return;
+            }
+            
+            if (isEditingProgram) {
+                // Editar programa existente
+                execMenu.programs[selectedProgramIndex] = {
+                    label: label,
+                    path: path
+                };
+            } else {
+                // Novo programa
+                execMenu.programs.push({
+                    label: label,
+                    path: path
+                });
+                selectedProgramIndex = execMenu.programs.length - 1;
+            }
+            
+            updateProgramsList();
+            updateProgramControls();
+            programForm.style.display = 'none';
+            saveTasks();
+        }
+
+        function cancelProgramEdit() {
+            programForm.style.display = 'none';
+        }
+
+        // ====== FUNÇÕES DE GESTÃO DE DOCUMENTOS ======
+        function openManageDocuments() {
+            updateDocumentsList();
+            documentsModal.style.display = 'flex';
+            selectedDocumentIndex = -1;
+            updateDocumentControls();
+            documentForm.style.display = 'none';
+        }
+
+        function updateDocumentsList() {
+            documentsList.innerHTML = '';
+            
+            execMenu.documents.forEach((doc, index) => {
+                const div = document.createElement('div');
+                div.className = 'document-item';
+                if (index === selectedDocumentIndex) {
+                    div.classList.add('selected');
+                }
+                
+                div.innerHTML = `
+                    <div class="document-label">${doc.label || 'Sem nome'}</div>
+                    <div class="document-path">${doc.path || 'Sem caminho'}</div>
+                `;
+                
+                // Clique simples para selecionar
+                div.addEventListener('click', () => {
+                    selectedDocumentIndex = index;
+                    updateDocumentsList();
+                    updateDocumentControls();
+                });
+                
+                // Duplo clique/duplo tap para abrir documento
+                div.addEventListener('dblclick', () => {
+                    selectedDocumentIndex = index;
+                    updateDocumentsList();
+                    updateDocumentControls();
+                    openDocument();
+                });
+                
+                // Para Android: duplo tap
+                let tapCount = 0;
+                let tapTimer;
+                div.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    tapCount++;
+                    if (tapCount === 1) {
+                        tapTimer = setTimeout(() => {
+                            tapCount = 0;
+                            // Clique simples
+                            selectedDocumentIndex = index;
+                            updateDocumentsList();
+                            updateDocumentControls();
+                        }, 300);
+                    } else if (tapCount === 2) {
+                        clearTimeout(tapTimer);
+                        tapCount = 0;
+                        // Duplo tap - abrir documento
+                        selectedDocumentIndex = index;
+                        updateDocumentsList();
+                        updateDocumentControls();
+                        openDocument();
+                    }
+                }, {passive: false});
+                
+                documentsList.appendChild(div);
+            });
+        }
+
+        function updateDocumentControls() {
+            const hasSelection = selectedDocumentIndex !== -1;
+            const hasDocuments = execMenu.documents.length > 0;
+            
+            documentUpBtn.disabled = !hasSelection || selectedDocumentIndex === 0;
+            documentDownBtn.disabled = !hasSelection || selectedDocumentIndex === execMenu.documents.length - 1;
+            openDocumentBtn.disabled = !hasSelection;
+            editDocumentBtn.disabled = !hasSelection;
+            removeDocumentBtn.disabled = !hasSelection;
+        }
+
+        function moveDocumentUp() {
+            if (selectedDocumentIndex <= 0) return;
+            [execMenu.documents[selectedDocumentIndex], execMenu.documents[selectedDocumentIndex - 1]] = 
+            [execMenu.documents[selectedDocumentIndex - 1], execMenu.documents[selectedDocumentIndex]];
+            selectedDocumentIndex--;
+            updateDocumentsList();
+            saveTasks();
+        }
+
+        function moveDocumentDown() {
+            if (selectedDocumentIndex >= execMenu.documents.length - 1) return;
+            [execMenu.documents[selectedDocumentIndex], execMenu.documents[selectedDocumentIndex + 1]] = 
+            [execMenu.documents[selectedDocumentIndex + 1], execMenu.documents[selectedDocumentIndex]];
+            selectedDocumentIndex++;
+            updateDocumentsList();
+            saveTasks();
+        }
+
+        function newDocument() {
+            isEditingDocument = false;
+            documentLabel.value = '';
+            documentPath.value = '';
+            documentForm.style.display = 'block';
+            documentLabel.focus();
+        }
+
+        function editDocument() {
+            if (selectedDocumentIndex === -1) return;
+            
+            const doc = execMenu.documents[selectedDocumentIndex];
+            documentLabel.value = doc.label || '';
+            documentPath.value = doc.path || '';
+            isEditingDocument = true;
+            documentForm.style.display = 'block';
+            documentLabel.focus();
+        }
+
+        function openDocument() {
+            if (selectedDocumentIndex === -1) return;
+            
+            const doc = execMenu.documents[selectedDocumentIndex];
+            if (doc.path) {
+                // Emitir aviso de indisponibilidade e copiar caminho
+                copyToClipboard(doc.path);
+                alert(`Funcionalidade indisponível na versão web.\n\nO caminho do documento foi copiado para a área de transferência:\n${doc.path}`);
+            }
+        }
+
+        function removeDocument() {
+            if (selectedDocumentIndex === -1) return;
+            
+            const doc = execMenu.documents[selectedDocumentIndex];
+            if (confirm(`Tem a certeza que pretende eliminar o documento "${doc.label}"?`)) {
+                execMenu.documents.splice(selectedDocumentIndex, 1);
+                selectedDocumentIndex = Math.min(selectedDocumentIndex, execMenu.documents.length - 1);
+                updateDocumentsList();
+                updateDocumentControls();
+                saveTasks();
+            }
+        }
+
+        function saveDocument() {
+            const label = documentLabel.value.trim();
+            const path = documentPath.value.trim();
+            
+            if (!label) {
+                alert('Por favor, introduza um nome para o documento.');
+                return;
+            }
+            
+            if (!path) {
+                alert('Por favor, introduza um caminho para o documento.');
+                return;
+            }
+            
+            if (isEditingDocument) {
+                // Editar documento existente
+                execMenu.documents[selectedDocumentIndex] = {
+                    label: label,
+                    path: path
+                };
+            } else {
+                // Novo documento
+                execMenu.documents.push({
+                    label: label,
+                    path: path
+                });
+                selectedDocumentIndex = execMenu.documents.length - 1;
+            }
+            
+            updateDocumentsList();
+            updateDocumentControls();
+            documentForm.style.display = 'none';
+            saveTasks();
+        }
+
+        function cancelDocumentEdit() {
+            documentForm.style.display = 'none';
+        }
+
+        // ====== FUNÇÕES DE MENU DE CONTEXTO ======
+        function handleMenuClick(e) {
+            const item = e.target.closest('.context-menu-item');
+            if (!item) return;
+
+            if (document.body.classList.contains('context-menu-closing')) {
+                e.stopPropagation();
+                e.preventDefault();
+                return;
+            }
+
+            if (item.classList.contains('has-submenu') && !item.dataset.action) {
+                return;
+            }
+
+            const action = item.dataset.action;
+            if (action) {
+                const idx = currentContextTaskIndex !== -1 ? currentContextTaskIndex : selectedTaskIndex;
+                handleContextMenuAction(action, idx, item);
+                hideContextMenu();
+            }
+        }
+
+        function handleDetachedSubmenuClick(e) {
+            const item = e.target.closest('.context-menu-item');
+            if (!item) return;
+            const inDetachedSubmenu = openSubmenuEl && openSubmenuEl.contains(item);
+            if (!inDetachedSubmenu) return;
+
+            if (item.classList.contains('has-submenu') && !item.dataset.action) {
+                return;
+            }
+
+            const action = item.dataset.action;
+            if (action) {
+                const idx = currentContextTaskIndex !== -1 ? currentContextTaskIndex : selectedTaskIndex;
+                handleContextMenuAction(action, idx, item);
+                hideContextMenu();
+                e.stopPropagation();
+                e.preventDefault();
+            }
+        }
+
+        function handleMenuTouch(e) {
+            const item = e.target.closest('.context-menu-item');
+            if (!item) return;
+
+            const menuVisible = contextMenu.style.display === 'block';
+            const insideDetachedSubmenu = openSubmenuEl && openSubmenuEl.contains(item);
+
+            if (!menuVisible && !insideDetachedSubmenu) return;
+
+            if (document.body.classList.contains('context-menu-closing')) {
+                e.stopPropagation();
+                e.preventDefault();
+                return;
+            }
+
+            if (item.classList.contains('has-submenu') && !item.dataset.action) {
+                return;
+            }
+
+            const action = item.dataset.action;
+            if (action) {
+                const idx = currentContextTaskIndex !== -1 ? currentContextTaskIndex : selectedTaskIndex;
+                e.stopPropagation();
+                e.preventDefault();
+                setTimeout(() => {
+                    handleContextMenuAction(action, idx, item);
+                }, 10);
+                hideContextMenu();
+            }
+        }
+
+        function isTouchDevice() {
+            return ('ontouchstart' in window) || 
+                   (navigator.maxTouchPoints > 0) || 
+                   (navigator.msMaxTouchPoints > 0);
+        }
+
+        // ====== SUBMENUS ======
+        function initSubmenus() {
+            contextMenuBody.querySelectorAll('.context-menu-item.has-submenu').forEach(item => {
+                item.addEventListener('mouseenter', () => {
+                    if (!isTouchDevice()) openSubmenu(item);
+                });
+                item.addEventListener('mouseleave', () => {
+                    if (!isTouchDevice()) scheduleCloseSubmenu();
+                });
+                item.addEventListener('click', (e) => {
+                    if (item.getAttribute('data-action')) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (openSubmenuParent === item) {
+                        closeSubmenu();
+                    } else {
+                        openSubmenu(item);
+                    }
+                });
+            });
+        }
+
+        function openSubmenu(item) {
+            const submenu = item.querySelector('.context-submenu');
+            if (!submenu) return;
+
+            closeSubmenu();
+
+            openSubmenuParent = item;
+            openSubmenuEl = submenu;
+
+            document.body.appendChild(submenu);
+            submenu.style.display = 'block';
+            submenu.style.position = 'fixed';
+            submenu.style.zIndex = 10001;
+            submenu.style.maxHeight = '60vh';
+            submenu.style.overflowY = 'auto';
+            submenu.style.overflowX = 'hidden';
+            submenu.style.background = 'white';
+            submenu.style.border = '1px solid #ccc';
+            submenu.style.borderRadius = '4px';
+            submenu.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+
+            positionSubmenu(item, submenu);
+
+            submenu.addEventListener('click', handleDetachedSubmenuClick);
+
+            submenu.onmouseenter = cancelCloseSubmenu;
+            submenu.onmouseleave = scheduleCloseSubmenu;
+        }
+
+        function positionSubmenu(item, submenu) {
+            const itemRect = item.getBoundingClientRect();
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+
+            let left = itemRect.right;
+            let top = itemRect.top;
+
+            submenu.style.left = left + 'px';
+            submenu.style.top = top + 'px';
+
+            let subRect = submenu.getBoundingClientRect();
+
+            if (left + subRect.width > vw) {
+                left = itemRect.left - subRect.width;
+                if (left < 5) left = 5;
+            }
+
+            if (top + subRect.height > vh) {
+                top = vh - subRect.height - 5;
+                if (top < 5) top = 5;
+            }
+
+            submenu.style.left = left + 'px';
+            submenu.style.top = top + 'px';
+        }
+
+        function scheduleCloseSubmenu() {
+            cancelCloseSubmenu();
+            submenuCloseTimer = setTimeout(() => {
+                if (!openSubmenuEl) return;
+                const overItem = openSubmenuParent && openSubmenuParent.matches(':hover');
+                const overSub = openSubmenuEl.matches(':hover');
+                if (!overItem && !overSub) {
+                    closeSubmenu();
+                }
+            }, 180);
+        }
+
+        function cancelCloseSubmenu() {
+            if (submenuCloseTimer) {
+                clearTimeout(submenuCloseTimer);
+                submenuCloseTimer = null;
+            }
+        }
+
+        function closeSubmenu() {
+            cancelCloseSubmenu();
+            if (openSubmenuEl && openSubmenuParent) {
+                openSubmenuEl.removeEventListener('click', handleDetachedSubmenuClick);
+                openSubmenuParent.appendChild(openSubmenuEl);
+                openSubmenuEl.style.display = 'none';
+            }
+            openSubmenuEl = null;
+            openSubmenuParent = null;
+        }
+
+        // =========================
+        // FUNÇÕES PRINCIPAIS
+        // =========================
+        function showContextMenu(event, taskItem) {
+            const index = Array.from(taskList.children).indexOf(taskItem);
+            if (index === -1 || index >= tasks.length) return;
+
+            currentContextTaskIndex = index;
+            selectTask(index);
+
+            const task = tasks[index];
+            const toggleCompleteItem = contextMenuBody.querySelector('[data-action="toggleComplete"]');
+            if (toggleCompleteItem) {
+                toggleCompleteItem.textContent = task.completed ?
+                    'Marcar como Não Completada' : 'Marcar como Completada';
+            }
+
+            const removeDateItem = contextMenuBody.querySelector('[data-action="removeDate"]');
+            if (removeDateItem) {
+                removeDateItem.textContent = task.date ?
+                    `Remover Data (${task.date})` : 'Remover Data';
+            }
+
+            updateDynamicSubmenus();
+
+            contextMenu.style.display = 'block';
+
+            let x = event.clientX || (event.touches && event.touches[0].clientX) || 0;
+            let y = event.clientY || (event.touches && event.touches[0].clientY) || 0;
+
+            const rect = contextMenuBody.getBoundingClientRect();
+            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+
+            if (x + rect.width > vw) x = vw - rect.width - 10;
+            if (y + rect.height > vh) y = vh - rect.height - 10;
+            if (x < 10) x = 10;
+            if (y < 10) y = 10;
+
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+
+            contextMenuBody.scrollTop = 0;
+            closeSubmenu();
+        }
+
+        function hideContextMenu() {
+            contextMenu.style.display = 'none';
+            currentContextTaskIndex = -1;
+            closeSubmenu();
+
+            if (isTouchDevice()) {
+                document.body.classList.add('context-menu-closing');
+                setTimeout(() => {
+                    document.body.classList.remove('context-menu-closing');
+                }, 300);
+            }
+        }
+
+        function updateTaskList() {
+            taskList.innerHTML = '';
+
+            tasks.forEach((task, index) => {
+                const li = document.createElement('li');
+                li.className = 'task-item';
+
+                if (task.highlightColor === 'red') li.classList.add('highlight-red');
+                if (task.highlightColor === 'blue') li.classList.add('highlight-blue');
+                if (task.completed) li.classList.add('completed');
+                if (index === selectedTaskIndex) li.classList.add('selected');
+
+                // ALTERAÇÃO: Aplicar estilo vermelho se for dia anterior ou próprio dia
+                if (task.date && (isDayBefore(task.date) || isScheduledDay(task.date))) {
+                    li.classList.add('red-day-before');
+                }
+
+                if (task.text === '┈┈') {
+                    li.classList.add('separator');
+                    li.textContent = '┈'.repeat(50);
+                } else {
+                    const iconsDiv = document.createElement('div');
+                    iconsDiv.className = 'task-icons';
+
+                    if (task.completed) iconsDiv.innerHTML += '✓ ';
+                    if (task.personalFolder) iconsDiv.innerHTML += '📁 ';
+                    if (task.sharedFolder) iconsDiv.innerHTML += '👥 ';
+                    if (task.link) iconsDiv.innerHTML += '🔗 ';
+                    if (task.date) iconsDiv.innerHTML += '⏰ ';
+
+                    const textDiv = document.createElement('div');
+                    textDiv.className = 'task-text';
+                    textDiv.textContent = (task.text || '').split('\n')[0];
+
+                    li.appendChild(iconsDiv);
+                    li.appendChild(textDiv);
+                }
+
+                li.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectTask(index);
+                });
+
+                li.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    openProperties();
+                });
+
+                taskList.appendChild(li);
+            });
+        }
+
+        function ensureTaskVisible(index) {
+            const container = document.querySelector('.list-section');
+            if (!container) return;
+            const item = taskList.children[index];
+            if (!item) return;
+
+            const containerRect = container.getBoundingClientRect();
+            const itemRect = item.getBoundingClientRect();
+
+            // Se o item estiver acima da área visível
+            if (itemRect.top < containerRect.top) {
+                container.scrollTop -= (containerRect.top - itemRect.top);
+            }
+            // Se o item estiver abaixo da área visível
+            else if (itemRect.bottom > containerRect.bottom) {
+                container.scrollTop += (itemRect.bottom - containerRect.bottom);
+            }
+        }
+
+        function selectTask(index) {
+            selectedTaskIndex = index;
+            updateTaskList();
+
+            const hasSelection = selectedTaskIndex !== -1;
+            moveUpBtn.disabled = !hasSelection || selectedTaskIndex === 0;
+            moveDownBtn.disabled = !hasSelection || selectedTaskIndex === tasks.length - 1;
+            propertiesBtn.disabled = !hasSelection;
+            removeTaskBtn.disabled = !hasSelection;
+
+            if (hasSelection) {
+                // garantir visibilidade no scroll
+                ensureTaskVisible(selectedTaskIndex);
+            }
+
+            updateStatus(hasSelection ? `Tarefa ${selectedTaskIndex + 1} de ${tasks.length} selecionada` : 'Pronto');
+        }
+
+        function addTask() {
+            const text = taskInput.value.trim();
+            if (!text) {
+                alert('Por favor, digite uma tarefa.');
+                return;
+            }
+
+            const newTask = {
+                text: text,
+                completed: false,
+                personalFolder: null,
+                sharedFolder: null,
+                link: null,
+                date: null,
+                highlightColor: null
+            };
+
+            if (selectedTaskIndex !== -1) {
+                tasks.splice(selectedTaskIndex + 1, 0, newTask);
+                selectTask(selectedTaskIndex + 1);
+            } else {
+                tasks.unshift(newTask);
+                selectTask(0);
+            }
+
+            taskInput.value = '';
+            updateTaskList();
+            saveTasks();
+            updateStatus('Tarefa adicionada com sucesso');
+        }
+
+        function moveTaskUp() {
+            if (selectedTaskIndex <= 0) return;
+            [tasks[selectedTaskIndex], tasks[selectedTaskIndex - 1]] = [tasks[selectedTaskIndex - 1], tasks[selectedTaskIndex]];
+            selectTask(selectedTaskIndex - 1);
+            updateTaskList();
+            saveTasks();
+        }
+
+        function moveTaskDown() {
+            if (selectedTaskIndex >= tasks.length - 1) return;
+            [tasks[selectedTaskIndex], tasks[selectedTaskIndex + 1]] = [tasks[selectedTaskIndex + 1], tasks[selectedTaskIndex]];
+            selectTask(selectedTaskIndex + 1);
+            updateTaskList();
+            saveTasks();
+        }
+
+        function openProperties() {
+            if (selectedTaskIndex === -1) {
+                alert('Por favor, selecione uma tarefa para ver as propriedades.');
+                return;
+            }
+
+            const task = tasks[selectedTaskIndex];
+            document.getElementById('propertiesTaskText').value = task.text;
+            document.getElementById('propertiesPersonalFolder').value = task.personalFolder || '';
+            document.getElementById('propertiesSharedFolder').value = task.sharedFolder || '';
+            document.getElementById('propertiesLink').value = task.link || '';
+            document.getElementById('propertiesDate').value = task.date || '';
+
+            document.getElementById('highlightNone').checked = !task.highlightColor;
+            document.getElementById('highlightRed').checked = task.highlightColor === 'red';
+            document.getElementById('highlightBlue').checked = task.highlightColor === 'blue';
+
+            propertiesModal.style.display = 'flex';
+        }
+
+        function saveProperties() {
+            const task = tasks[selectedTaskIndex];
+            const newText = document.getElementById('propertiesTaskText').value.trim();
+            if (!newText) {
+                alert('A tarefa não pode estar vazia.');
+                return;
+            }
+
+            task.text = newText;
+            task.personalFolder = document.getElementById('propertiesPersonalFolder').value.trim() || null;
+            task.sharedFolder = document.getElementById('propertiesSharedFolder').value.trim() || null;
+            task.link = document.getElementById('propertiesLink').value.trim() || null;
+
+            const dateValue = document.getElementById('propertiesDate').value.trim();
+            task.date = dateValue && isValidDate(dateValue) ? dateValue : null;
+
+            const highlightValue = document.querySelector('input[name="highlight"]:checked').value;
+            task.highlightColor = highlightValue === 'none' ? null : highlightValue;
+
+            updateTaskList();
+            saveTasks();
+            closeModals();
+            updateStatus('Propriedades da tarefa atualizadas com sucesso');
+            
+            // NOVO: Resetar alerta quando data é modificada
+            resetDayAlert();
+            triggerDayAlertCheck();
+        }
+
+        function removeTask() {
+            if (selectedTaskIndex === -1) {
+                alert('Por favor, selecione uma tarefa para eliminar.');
+                return;
+            }
+
+            const taskText = tasks[selectedTaskIndex].text;
+            const preview = taskText.length > 150 ? taskText.substring(0, 147) + '...' : taskText;
+
+            if (confirm(`Tem a certeza que pretende eliminar a tarefa?\n\n${preview}`)) {
+                tasks.splice(selectedTaskIndex, 1);
+                selectTask(Math.min(selectedTaskIndex, tasks.length - 1));
+                updateTaskList();
+                saveTasks();
+                updateStatus('Tarefa removida com sucesso');
+            }
+        }
+
+        function clearAllTasks() {
+            if (!tasks.length) {
+                alert('Não há tarefas para limpar.');
+                return;
+            }
+
+            if (confirm('Tem a certeza que deseja limpar TODAS as tarefas?\n\nATENÇÃO: esta ação não pode ser desfeita.')) {
+                tasks = [];
+                selectTask(-1);
+                updateTaskList();
+                saveTasks();
+                updateStatus('Todas as tarefas foram removidas');
+            }
+        }
+
+		function exportToJSON() {
+			const data = {
+				tarefas: tasks.map(task => ({
+					texto: task.text,
+					completada: task.completed,
+					pasta_pessoal: task.personalFolder,
+					pasta_partilhada: task.sharedFolder,
+					link: task.link,
+					data: task.date,
+					destaque: task.highlightColor === 'red',
+					destaque_cor: task.highlightColor === 'red' ? 'vermelho' :
+								  task.highlightColor === 'blue' ? 'azul' : null
+				})),
+				notas: notes,
+				ultimo_aviso_data: lastWarningDate,
+				executar_menu: {
+					programas: execMenu.programs,
+					pasta_programas: execMenu.programsFolder,
+					favoritos: execMenu.favorites,
+					pasta_links: execMenu.linksFolder,
+					documentos: execMenu.documents,
+					pasta_documentos: execMenu.documentsFolder
+				}
+			};
+
+			const dataStr = JSON.stringify(data, null, 2);
+
+			// ► No Android (WebView), gravar em /Downloads via ponte nativa
+			if (window.Android && typeof window.Android.saveJSON === 'function') {
+				const ok = window.Android.saveJSON('tarefas.json', dataStr);
+				if (ok) {
+					updateStatus('Dados exportados para a pasta Downloads');
+				} else {
+					updateStatus('Falha na exportação (verifique permissões/armazenamento)');
+				}
+				return;
+			}
+
+			// ► Fallback (navegador desktop): descarga normal
+			const dataBlob = new Blob([dataStr], {type: 'application/json'});
+			const url = URL.createObjectURL(dataBlob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = 'tarefas.json';
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+
+			updateStatus('Dados exportados (download do navegador)');
+		}
+
+		function importFromJSON(event) {
+		    const file = event.target.files[0];
+		    if (!file) return;
+		
+		    const reader = new FileReader();
+		    reader.onload = function(e) {
+		        try {
+		            const data = JSON.parse(e.target.result);
+		            if (data.tarefas) {
+		                tasks = data.tarefas.map(normalizeTask);
+		                notes = data.notas || "";
+		                lastWarningDate = data.ultimo_aviso_data || null;
+		
+		                if (data.executar_menu) {
+		                    execMenu = {
+		                        programs: data.executar_menu.programas || [],
+		                        programsFolder: data.executar_menu.pasta_programas || null,
+		                        favorites: data.executar_menu.favoritos || [],
+		                        linksFolder: data.executar_menu.pasta_links || null,
+		                        documents: data.executar_menu.documentos || [],
+		                        documentsFolder: data.executar_menu.pasta_documentos || null
+		                    };
+		                }
+		            } else {
+		                throw new Error('Formato de JSON inválido');
+		            }
+		
+		            selectTask(-1);
+		            updateTaskList();
+		            notesTextarea.value = notes;
+		            saveTasks();
+		
+		            updateStatus('Dados importados com sucesso');
+		            
+		            // CORREÇÃO: Verificar tarefas agendadas após importação
+		            setTimeout(() => {
+		                resetDayAlert();
+		                checkDayAlerts();
+		            }, 500);
+		            
+		        } catch (error) {
+		            alert('Erro ao importar ficheiro: ' + error.message);
+		            updateStatus('Erro ao importar ficheiro');
+		        }
+		    };
+		
+		    reader.readAsText(file);
+		    fileInput.value = '';
+		}
+
+        function toggleNotes() {
+            notesVisible = !notesVisible;
+            if (notesVisible) {
+                notesContainer.classList.add('visible');
+                notesBtn.textContent = 'Guardar Notas';
+            } else {
+                notesContainer.classList.remove('visible');
+                notesBtn.textContent = 'Notas';
+                saveNotes();
+            }
+        }
+
+        function saveNotes() {
+            notes = notesTextarea.value;
+            saveTasks();
+            updateStatus('Notas salvas com sucesso');
+        }
+
+        function closeModals() {
+            propertiesModal.style.display = 'none';
+            favoritesModal.style.display = 'none';
+            programsModal.style.display = 'none';
+            documentsModal.style.display = 'none';
+            dayAlertModal.style.display = 'none';
+        }
+
+        function executeSearch() {
+            const term = searchInput.value.trim();
+            if (!term) {
+                alert('Por favor, introduza um termo para pesquisar.');
+                return;
+            }
+
+            searchTerm = term;
+            searchResults = [];
+
+            tasks.forEach((task, index) => {
+                if ((task.text || '').toLowerCase().includes(term.toLowerCase())) {
+                    searchResults.push(index);
+                }
+            });
+
+            if (!searchResults.length) {
+                alert(`Nenhum resultado encontrado para '${term}'.`);
+                selectTask(-1);
+                nextResultBtn.disabled = true;
+                return;
+            }
+
+            currentSearchIndex = 0;
+            nextResultBtn.disabled = false;
+            selectTask(searchResults[currentSearchIndex]); // isto já faz scroll
+            updateStatus(`Encontradas ${searchResults.length} tarefas para '${term}'`);
+        }
+
+        function nextSearchResult() {
+            if (!searchResults.length) return;
+
+            currentSearchIndex = (currentSearchIndex + 1) % searchResults.length;
+            // selectTask já faz scroll até ao item
+            selectTask(searchResults[currentSearchIndex]);
+        }
+
+        // Atualiza o submenu "Gerir"
+        function updateDynamicSubmenus() {
+            manageSubmenu.innerHTML = `
+                <div class="context-menu-item" data-action="managePrograms">Programas</div>
+                <div class="context-menu-item" data-action="manageDocuments">Documentos</div>
+                <div class="context-menu-item" data-action="manageFavorites">Favoritos</div>
+            `;
+        }
+
+        // Utilitário para copiar para a clipboard
+        function copyToClipboard(text) {
+            if (!text) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).catch(() => {});
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                } catch (e) {}
+                document.body.removeChild(textarea);
+            }
+        }
+
+        function handleContextMenuAction(action, index, element) {
+            if (index === -1) return;
+            const task = tasks[index];
+
+            switch (action) {
+                case 'toggleComplete':
+                    task.completed = !task.completed;
+                    if (task.completed) {
+                        const completedTask = tasks.splice(index, 1)[0];
+                        tasks.push(completedTask);
+                        selectTask(tasks.length - 1);
+                    }
+                    updateTaskList();
+                    saveTasks();
+                    updateStatus(`Tarefa ${task.completed ? 'completada' : 'não completada'}`);
+                    break;
+
+                case 'edit':
+                    openProperties();
+                    break;
+
+                case 'remove':
+                    removeTask();
+                    break;
+
+                case 'openPersonalFolder':
+                    // ALTERAÇÃO 1: Se não existir pasta pessoal, abrir janela para definir
+                    if (task.personalFolder) {
+                        copyToClipboard(task.personalFolder);
+                        alert(`Pasta Pessoal: ${task.personalFolder}\n\nEm ambiente web, não é possível abrir pastas locais. A localização foi copiada para a área de transferência.`);
+                    } else {
+                        const folderPath = prompt('Defina o caminho da pasta pessoal para esta tarefa:');
+                        if (folderPath && folderPath.trim()) {
+                            task.personalFolder = folderPath.trim();
+                            updateTaskList();
+                            saveTasks();
+                            updateStatus(`Pasta pessoal definida: ${task.personalFolder}`);
+                        }
+                    }
+                    break;
+
+                case 'openSharedFolder':
+                    // ALTERAÇÃO 1: Se não existir pasta partilhada, abrir janela para definir
+                    if (task.sharedFolder) {
+                        copyToClipboard(task.sharedFolder);
+                        alert(`Pasta Partilhada: ${task.sharedFolder}\n\nEm ambiente web, não é possível abrir pastas locais. A localização foi copiada para a área de transferência.`);
+                    } else {
+                        const folderPath = prompt('Defina o caminho da pasta partilhada para esta tarefa:');
+                        if (folderPath && folderPath.trim()) {
+                            task.sharedFolder = folderPath.trim();
+                            updateTaskList();
+                            saveTasks();
+                            updateStatus(`Pasta partilhada definida: ${task.sharedFolder}`);
+                        }
+                    }
+                    break;
+
+                case 'removePersonalFolder':
+                    if (task.personalFolder) {
+                        task.personalFolder = null;
+                        updateTaskList();
+                        saveTasks();
+                        updateStatus('Pasta pessoal removida');
+                    } else {
+                        alert('A tarefa não tem pasta pessoal associada.');
+                    }
+                    break;
+
+                case 'removeSharedFolder':
+                    if (task.sharedFolder) {
+                        task.sharedFolder = null;
+                        updateTaskList();
+                        saveTasks();
+                        updateStatus('Pasta partilhada removida');
+                    } else {
+                        alert('A tarefa não tem pasta partilhada associada.');
+                    }
+                    break;
+
+                case 'openLink':
+                    // ALTERAÇÃO 2: Se não existir link, abrir janela para definir
+                    if (task.link) {
+                        window.open(task.link, '_blank');
+                    } else {
+                        const link = prompt('Indique o URL para associar à tarefa:', 'https://');
+                        if (link && link.trim()) {
+                            let finalLink = link.trim();
+                            if (!finalLink.startsWith('http://') && !finalLink.startsWith('https://')) {
+                                finalLink = 'https://' + finalLink;
+                            }
+                            task.link = finalLink;
+                            updateTaskList();
+                            saveTasks();
+                            updateStatus(`Link associado à tarefa: ${finalLink}`);
+                        }
+                    }
+                    break;
+
+                case 'removeLink':
+                    if (task.link) {
+                        task.link = null;
+                        updateTaskList();
+                        saveTasks();
+                        updateStatus('Link removido');
+                    } else {
+                        alert('A tarefa não tem link associado.');
+                    }
+                    break;
+
+                case 'addDate':
+                    const today = new Date();
+                    const defaultDate = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
+                    const date = prompt('Indique a data no formato DD-MM-AAAA:', defaultDate);
+                    if (date && date.trim()) {
+                        if (isValidDate(date.trim())) {
+                            task.date = date.trim();
+                            updateTaskList();
+                            saveTasks();
+                            updateStatus(`Data ${task.date} associada à tarefa`);
+                            
+                            // NOVO: Resetar alerta quando data é adicionada
+                            resetDayAlert();
+                            triggerDayAlertCheck();
+                        } else {
+                            alert('Formato inválido. Utilize DD-MM-AAAA (ex.: 05-11-2025).');
+                        }
+                    }
+                    break;
+
+                case 'removeDate':
+                    if (task.date) {
+                        task.date = null;
+                        updateTaskList();
+                        saveTasks();
+                        updateStatus('Data removida');
+                    } else {
+                        alert('A tarefa não tem data associada.');
+                    }
+                    break;
+
+                case 'highlightRed':
+                    task.highlightColor = 'red';
+                    updateTaskList();
+                    saveTasks();
+                    updateStatus('Tarefa destacada em vermelho');
+                    break;
+
+                case 'highlightBlue':
+                    task.highlightColor = 'blue';
+                    updateTaskList();
+                    saveTasks();
+                    updateStatus('Tarefa destacada em azul');
+                    break;
+
+                case 'removeHighlight':
+                    task.highlightColor = null;
+                    updateTaskList();
+                    saveTasks();
+                    updateStatus('Destaque removido');
+                    break;
+
+                case 'insertSeparator':
+                    const separator = {
+                        text: '┈┈',
+                        completed: false,
+                        personalFolder: null,
+                        sharedFolder: null,
+                        link: null,
+                        date: null,
+                        highlightColor: null
+                    };
+                    tasks.splice(index + 1, 0, separator);
+                    selectTask(index + 1);
+                    updateTaskList();
+                    saveTasks();
+                    updateStatus('Separador inserido');
+                    break;
+
+                case 'removeSeparator':
+                    if (task.text === '┈┈') {
+                        tasks.splice(index, 1);
+                        selectTask(Math.min(index, tasks.length - 1));
+                        updateTaskList();
+                        saveTasks();
+                        updateStatus('Separador removido');
+                    } else {
+                        alert('Esta não é uma tarefa separadora.');
+                    }
+                    break;
+
+                case 'generateReport':
+                    generateReport();
+                    break;
+
+                case 'managePrograms':
+                    openManagePrograms();
+                    break;
+
+                case 'manageDocuments':
+                    openManageDocuments();
+                    break;
+
+                case 'manageFavorites':
+                    openManageFavorites();
+                    break;
+
+                default:
+                    console.log(`Ação "${action}" não implementada`);
+            }
+        }
+
+        function generateReport() {
+            const activeTasks = tasks.filter(t => !t.completed && t.text !== '┈┈');
+            
+            if (!activeTasks.length) {
+                alert('Não existem tarefas ativas para gerar relatório.');
+                return;
+            }
+
+            let report = `RELATÓRIO DE TAREFAS - ${new Date().toLocaleDateString('pt-PT')}\n\n`;
+            
+            activeTasks.forEach((task, index) => {
+                report += `Tarefa ${index + 1}:\n`;
+                report += `Tarefa: ${task.text}\n`;
+                
+                if (task.sharedFolder) {
+                    report += `Pasta Partilhada: ${task.sharedFolder}\n`;
+                }
+                
+                if (task.link) {
+                    report += `Link: ${task.link}\n`;
+                } else {
+                    report += `Link: \n`;
+                }
+                
+                if (task.date) {
+                    report += `Data: ${task.date}\n`;
+                } else {
+                    report += `Data: n/a\n`;
+                }
+                
+                report += `\n`;
+            });
+
+			// Se correr dentro do APK → guardar na pasta Downloads
+			if (typeof Android !== "undefined" && Android.saveReport) {
+				Android.saveReport(
+					`Relatório_${new Date().toLocaleDateString('pt-PT').replace(/\//g, '_')}.txt`,
+					report
+				);
+			} else {
+				// Se correr no PC → download normal (mantém funcionalidade)
+				const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+				const url = URL.createObjectURL(blob);
+				const link = document.createElement('a');
+				link.href = url;
+				link.download = `Relatório_${new Date().toLocaleDateString('pt-PT').replace(/\//g, '_')}.txt`;
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+				URL.revokeObjectURL(url);
+			}
+
+            updateStatus('Relatório gerado com sucesso');
+        }
+
+        function updateStatus(message) {
+            statusText.textContent = message;
+        }
+
+        function loadTasks() {
+            const saved = localStorage.getItem('organizadorTarefas');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    tasks = (data.tasks || []).map(normalizeTask);
+                    notes = data.notes || "";
+                    lastWarningDate = data.lastWarningDate || null;
+                    execMenu = data.execMenu || {
+                        programs: [],
+                        programsFolder: null,
+                        favorites: [],
+                        linksFolder: null,
+                        documents: [],
+                        documentsFolder: null
+                    };
+                    notesTextarea.value = notes;
+                } catch (e) {
+                    console.error('Erro ao carregar dados:', e);
+                }
+            }
+        }
+
+        function saveTasks() {
+            const data = {
+                tasks: tasks,
+                notes: notes,
+                lastWarningDate: lastWarningDate,
+                execMenu: execMenu
+            };
+            localStorage.setItem('organizadorTarefas', JSON.stringify(data));
+        }
+
+        function normalizeTask(task) {
+            if (!task || typeof task !== 'object') {
+                return createDefaultTask();
+            }
+
+            if (task.text !== undefined) {
+                return {
+                    text: String(task.text || ''),
+                    completed: Boolean(task.completed),
+                    personalFolder: task.personalFolder || null,
+                    sharedFolder: task.sharedFolder || null,
+                    link: task.link || null,
+                    date: task.date || null,
+                    highlightColor: task.highlightColor || null
+                };
+            }
+
+            if (task.texto !== undefined) {
+                let highlightColor = null;
+                if (task.destaque_cor) {
+                    if (task.destaque_cor === 'vermelho') highlightColor = 'red';
+                    else if (task.destaque_cor === 'azul') highlightColor = 'blue';
+                } else if (task.destaque === true) {
+                    highlightColor = 'red';
+                }
+                return {
+                    text: String(task.texto || ''),
+                    completed: Boolean(task.completada),
+                    personalFolder: task.pasta_pessoal || null,
+                    sharedFolder: task.pasta_partilhada || null,
+                    link: task.link || null,
+                    date: task.data || null,
+                    highlightColor: highlightColor
+                };
+            }
+
+            return createDefaultTask();
+        }
+
+        function createDefaultTask() {
+            return {
+                text: '',
+                completed: false,
+                personalFolder: null,
+                sharedFolder: null,
+                link: null,
+                date: null,
+                highlightColor: null
+            };
+        }
+
+        function isValidDate(dateString) {
+            const regex = /^(\d{2})-(\d{2})-(\d{4})$/;
+            const match = dateString.match(regex);
+            if (!match) return false;
+
+            const day = parseInt(match[1], 10);
+            const month = parseInt(match[2], 10);
+            const year = parseInt(match[3], 10);
+
+            if (year < 1900 || year > 9999) return false;
+
+            const date = new Date(year, month - 1, day);
+            return date.getDate() === day && date.getMonth() === month - 1 && date.getFullYear() === year;
+        }
+    </script>
+</body>
+</html>
