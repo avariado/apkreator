@@ -1,20 +1,24 @@
-name: Build Real APK
+name: Build Universal APK
 
 on:
   workflow_dispatch:
     inputs:
       html_file:
-        description: 'HTML file path (from repository root)'
+        description: 'HTML file path (relative to repository root)'
         required: true
-        default: 'templates/app.html'
+        default: 'templates/my-app.html'
       app_name:
         description: 'App name'
         required: true
         default: 'MyWebApp'
       package_name:
-        description: 'Package name (ex: com.company.app)'
-        required: true
-        default: 'com.example.myapp'
+        description: 'Package name'
+        required: false
+        default: ''
+      version_name:
+        description: 'Version name'
+        required: false  
+        default: '1.0'
 
 jobs:
   build:
@@ -24,269 +28,48 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Setup Java
-      uses: actions/setup-java@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
-        distribution: 'temurin'
-        java-version: '11'
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        pip install -r src/requirements.txt
+        
+    - name: Create APK from HTML
+      run: |
+        cd src
+        python apkreator.py \
+          --html "../${{ github.event.inputs.html_file }}" \
+          --app-name "${{ github.event.inputs.app_name }}" \
+          --package-name "${{ github.event.inputs.package_name }}" \
+          --version-name "${{ github.event.inputs.version_name }}" \
+          --output-dir "../dist"
           
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y wget unzip zip git curl
-        
-    - name: Create template HTML if not exists
-      run: |
-        mkdir -p templates
-        if [ ! -f templates/app.html ]; then
-          cat > templates/app.html << 'HTML'
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APK Gerado no GitHub</title>
-    <style>
-        body { 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            text-align: center;
-            padding: 40px 20px;
-        }
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 20px;
-        }
-        .info {
-            background: rgba(255,255,255,0.1);
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🎉 APK Gerado com Sucesso!</h1>
-        <div class="info">
-            <p><strong>App:</strong> MyWebApp</p>
-            <p><strong>Package:</strong> com.example.myapp</p>
-            <p><strong>Build ID:</strong> ${{ github.run_id }}</p>
-        </div>
-        <p>Este aplicativo foi gerado automaticamente via GitHub Actions</p>
-    </div>
-</body>
-</html>
-HTML
-        fi
-
-    - name: Create APK Builder Script
-      run: |
-        cat > build_apk.py << 'EOF'
-import os
-import sys
-import shutil
-import zipfile
-import subprocess
-from pathlib import Path
-import tempfile
-
-class SimpleAPKBuilder:
-    def __init__(self, html_file, app_name, package_name):
-        self.html_file = html_file
-        self.app_name = app_name
-        self.package_name = package_name
-        self.temp_dir = Path(tempfile.mkdtemp())
-        self.output_dir = Path("dist/apks")
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        
-    def create_apk_structure(self):
-        print("Creating APK structure...")
-        base_dir = self.temp_dir / "apk"
-        for dir_name in ["assets", "res", "META-INF"]:
-            (base_dir / dir_name).mkdir(parents=True)
-        return base_dir
-        
-    def create_android_manifest(self, base_dir):
-        manifest_content = f'''<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="{self.package_name}"
-    android:versionCode="1"
-    android:versionName="1.0">
-    
-    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="33" />
-    <uses-permission android:name="android.permission.INTERNET"/>
-    
-    <application
-        android:label="{self.app_name}"
-        android:theme="@android:style/Theme.DeviceDefault.Light">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>'''
-        
-        with open(base_dir / "AndroidManifest.xml", "w") as f:
-            f.write(manifest_content)
-            
-    def copy_html_assets(self, base_dir):
-        assets_dir = base_dir / "assets"
-        shutil.copy2(self.html_file, assets_dir / "index.html")
-        print(f"HTML copied: {self.html_file}")
-        
-    def create_basic_dex(self, base_dir):
-        with open(base_dir / "classes.dex", "wb") as f:
-            f.write(b"dex\n035")
-            
-    def create_resources(self, base_dir):
-        res_dir = base_dir / "res" / "values"
-        res_dir.mkdir(parents=True)
-        
-        strings_content = f'''<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">{self.app_name}</string>
-</resources>'''
-        
-        with open(res_dir / "strings.xml", "w") as f:
-            f.write(strings_content)
-            
-    def package_apk(self, base_dir):
-        apk_name = f"{self.app_name.replace(' ', '_')}.apk"
-        apk_path = self.output_dir / apk_name
-        
-        print("Packaging APK...")
-        
-        with zipfile.ZipFile(apk_path, 'w', zipfile.ZIP_DEFLATED) as apk_zip:
-            apk_zip.write(base_dir / "AndroidManifest.xml", "AndroidManifest.xml")
-            
-            for asset_file in (base_dir / "assets").rglob("*"):
-                if asset_file.is_file():
-                    arcname = asset_file.relative_to(base_dir / "assets")
-                    apk_zip.write(asset_file, f"assets/{arcname}")
-                    
-            for res_file in (base_dir / "res").rglob("*"):
-                if res_file.is_file():
-                    arcname = res_file.relative_to(base_dir)
-                    apk_zip.write(res_file, str(arcname))
-                    
-            if (base_dir / "classes.dex").exists():
-                apk_zip.write(base_dir / "classes.dex", "classes.dex")
-                
-            apk_zip.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n")
-            
-        print(f"APK packaged: {apk_path}")
-        return apk_path
-        
-    def sign_apk(self, apk_path):
-        print("Signing APK...")
-        
-        keystore_path = self.temp_dir / "debug.keystore"
-        subprocess.run([
-            "keytool", "-genkey", "-v",
-            "-keystore", str(keystore_path),
-            "-alias", "androiddebugkey",
-            "-storepass", "android",
-            "-keypass", "android", 
-            "-keyalg", "RSA",
-            "-keysize", "2048",
-            "-validity", "10000",
-            "-dname", "CN=Android Debug,O=Android,C=US"
-        ], input=b"\n", check=True)
-        
-        signed_apk_path = apk_path.parent / f"signed_{apk_path.name}"
-        subprocess.run([
-            "jarsigner", "-verbose",
-            "-keystore", str(keystore_path),
-            "-storepass", "android",
-            "-keypass", "android",
-            str(apk_path),
-            "androiddebugkey"
-        ], check=True)
-        
-        print(f"APK signed: {signed_apk_path}")
-        return signed_apk_path
-        
-    def build(self):
-        try:
-            print(f"Starting build for: {self.app_name}")
-            
-            base_dir = self.create_apk_structure()
-            self.create_android_manifest(base_dir)
-            self.copy_html_assets(base_dir)
-            self.create_basic_dex(base_dir)
-            self.create_resources(base_dir)
-            
-            apk_path = self.package_apk(base_dir)
-            signed_apk_path = self.sign_apk(apk_path)
-            
-            print(f"Build completed: {signed_apk_path}")
-            return str(signed_apk_path)
-            
-        except Exception as e:
-            print(f"Build error: {e}")
-            import traceback
-            traceback.print_exc()
-            raise
-
-if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print("Usage: python build_apk.py <html_file> <app_name> <package_name>")
-        sys.exit(1)
-        
-    html_file = sys.argv[1]
-    app_name = sys.argv[2] 
-    package_name = sys.argv[3]
-    
-    if not os.path.exists(html_file):
-        print(f"File not found: {html_file}")
-        sys.exit(1)
-        
-    builder = SimpleAPKBuilder(html_file, app_name, package_name)
-    apk_path = builder.build()
-EOF
-
-    - name: Build APK
-      run: |
-        python build_apk.py "templates/app.html" "MyWebApp" "com.example.myapp"
-        
-    - name: List generated files
-      run: |
-        echo "Generated files:"
-        find . -name "*.apk" -type f
-        echo "dist/ contents:"
-        ls -la dist/ || echo "No dist directory"
-        echo "dist/apks/ contents:"
-        ls -la dist/apks/ || echo "No dist/apks directory"
-        
-    - name: Upload APK Artifact
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: generated-apk
         path: dist/apks/*.apk
         retention-days: 30
+        
+    - name: Upload build info
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-info
+        path: dist/build-info.json
+        retention-days: 30
 
     - name: Create GitHub Release
-      if: success()
+      if: github.event_name == 'workflow_dispatch'
       uses: softprops/action-gh-release@v1
       with:
         files: dist/apks/*.apk
-        tag_name: apk-${{ github.run_id }}
+        tag_name: apk-build-${{ github.run_id }}
         release_name: "APK - ${{ github.event.inputs.app_name }}"
         body: |
-          APK generated via GitHub Actions
+          APK gerado automaticamente
           - App: ${{ github.event.inputs.app_name }}
           - Package: ${{ github.event.inputs.package_name }}
-          - Build: ${{ github.run_id }}
+          - Version: ${{ github.event.inputs.version_name }}
