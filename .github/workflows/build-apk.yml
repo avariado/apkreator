@@ -29,10 +29,7 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: '11'
-        
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      
+          
     - name: Install system dependencies
       run: |
         sudo apt-get update
@@ -43,30 +40,7 @@ jobs:
           git \
           curl
           
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        
-    - name: Download and setup Android Command Line Tools
-      run: |
-        # Download Android Command Line Tools
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        mkdir -p android-cmdline-tools
-        unzip -q commandlinetools-linux-9477386_latest.zip -d android-cmdline-tools
-        mv android-cmdline-tools/cmdline-tools android-cmdline-tools/latest
-        
-        # Set environment variables
-        echo "ANDROID_HOME=$PWD/android-cmdline-tools" >> $GITHUB_ENV
-        echo "$PWD/android-cmdline-tools/latest/bin" >> $GITHUB_PATH
-        
-        # Accept licenses
-        yes | android-cmdline-tools/latest/bin/sdkmanager --licenses || true
-        
-        # Install required packages
-        android-cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-33" "cmdline-tools;latest"
-        
-    - name: Create Simple APK Builder
+    - name: Create Simple APK Builder Script
       run: |
         cat > build_simple_apk.py << 'EOF'
 #!/usr/bin/env python3
