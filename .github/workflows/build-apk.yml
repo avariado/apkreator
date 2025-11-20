@@ -126,15 +126,12 @@ MANIFEST
         # Criar APK como arquivo ZIP
         APK_NAME="${APP_NAME// /_}.apk"
         cd apk_build
-        
-        # Criar arquivo ZIP básico (APK)
         zip -r "../dist/apks/$APK_NAME" . -x ".*" -x "__MACOSX"
-        
         echo "APK created: dist/apks/$APK_NAME"
         
     - name: List generated files
       run: |
-        echo "📁 Generated files:"
+        echo "Generated files:"
         find dist -type f -name "*.apk" | head -10
         ls -la dist/apks/ || echo "No APKs generated"
         
@@ -156,7 +153,7 @@ MANIFEST
         body: |
           APK básico gerado via GitHub Actions
           
-          **Detalhes:**
+          Detalhes:
           - App: ${{ github.event.inputs.app_name }}
           - Package: ${{ github.event.inputs.package_name || 'auto-generated' }}
           - Version: ${{ github.event.inputs.version_name }}
