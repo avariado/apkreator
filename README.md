@@ -28,14 +28,46 @@ https://www.pwabuilder.com/
     <link rel="icon" type="image/png" href="icon-192x192.png">
     
     <style>
-        /* Todo o seu CSS atual aqui */
+        /* SEU CSS EXISTENTE AQUI - mantenha todo o style que você já tem */
+        :root {
+            --primary-color: #4a6987;
+            --secondary-color: #f0f0f0;
+            /* ... todo o resto do seu CSS */
+        }
+        /* ... resto do seu CSS completo */
     </style>
 </head>
 <body>
-    <!-- Seu HTML atual aqui -->
-    
-    <!-- Substitua a tag <script> por: -->
-    <script src="script.js"></script>
+    <!-- SEU HTML EXISTENTE AQUI - mantenha toda a estrutura HTML que você já tem -->
+    <div class="container">
+        <h1>Organizador de Tarefas</h1>
+        <!-- ... todo o resto do seu HTML -->
+    </div>
+
+    <!-- SEU JAVASCRIPT EXISTENTE AQUI - mantenha toda a tag script -->
+    <script>
+        // =========================
+        // ESTADO
+        // =========================
+        let tasks = [];
+        let notes = "";
+        // ... TODO O SEU JAVASCRIPT ATUAL
+        
+        // ADICIONE ESTA FUNÇÃO NO FINAL DO SEU SCRIPT:
+        
+        // Registrar Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                        console.log('Service Worker registrado com sucesso:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('Falha no registro do Service Worker:', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
 
